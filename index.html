@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ReSilence Bug Report</title>
+
+  <!-- Firebase -->
+  <script>
+// --- Firebase Config (PASTIKAN ISI SENDIRI) ---
+const firebaseConfig = {
+  apiKey: "YOUR_API_KEY",
+  authDomain: "YOUR_PROJECT.firebaseapp.com",
+  projectId: "YOUR_PROJECT",
+  storageBucket: "YOUR_PROJECT.appspot.com",
+  messagingSenderId: "YOUR_SENDER_ID",
+  appId: "YOUR_APP_ID"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+const storage = firebase.storage();
+
+// --- Submit Report ---
+document.getElementById("reportForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+
+  const gamertag = document.getElementById("gamertag").value.trim();
+  const reported = document.getElementById("reported").value.trim();
+  const reason = document.getElementById("reason").value.trim();
+  const images = document.getElementById("images").files;
+
+  if (!gamertag || !reported || !reason) {
+    alert("Semua kolom wajib diisi!");
+    return;
+  }
+
+  const imageURLs = [];
+
+  for (let i = 0; i < images.length; i++) {
+    const file = images[i];
+    const ref = storage.ref().child("reports/" + Date.now() + "_" + file.name);
+    await ref.put(file);
+    const url = await ref.getDownloadURL();
+    imageURLs.push(url);
+  }
+
+  await db.collection("reports").add({
+    gamertag,
+    reported,
+    reason,
+    images: imageURLs,
+    timestamp: firebase.firestore.FieldValue.serverTimestamp()
+  });
+
+  alert("Report berhasil dikirim!");
+  document.getElementById("reportForm").reset();
+});
+
+// --- Real-Time Listener ---
+const reportList = document.getElementById("reportList");
+reportList.innerHTML = "";
+
+db.collection("reports").orderBy("timestamp", "desc")
+  .onSnapshot((snap) => {
+    reportList.innerHTML = "";
+    snap.forEach((doc) => {
+      const d = doc.data();
+      const card = document.createElement("div");
+      card.className = "report-card";
+
+      card.innerHTML = `
+        <h2>${d.gamertag}</h2>
+        <p><b>Yang Direport:</b> ${d.reported}</p>
+        <p><b>Alasan:</b> ${d.reason}</p>
+        <div class="img-wrap">
+          ${d.images.map((img) => `<img src="${img}">`).join("")}
+        </div>
+      `;
+
+      reportList.appendChild(card);
+    });
+  });
+</script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js"></script>
+
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      background: black;
+      font-family: "Poppins", sans-serif;
+      color: white;
+      overflow-x: hidden;
+    }
+
+    .bg-anim {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: radial-gradient(circle at 20% 20%, #1e40af33, transparent),
+                  radial-gradient(circle at 80% 80%, #9333ea33, transparent);
+      animation: move 12s infinite alternate ease-in-out;
+      z-index: -1;
+    }
+    @keyframes move {
+      0% { transform: translate(0, 0); }
+      100% { transform: translate(-40px, -60px); }
+    }
+
+    header {
+      background: #111827dd;
+      padding: 15px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      backdrop-filter: blur(8px);
+      position: sticky;
+      top: 0;
+      z-index: 5;
+    }
+
+    .container {
+      padding: 20px;
+      max-width: 650px;
+      margin: auto;
+      padding-bottom: 100px;
+    }
+
+    .card {
+      background: #111827cc;
+      padding: 20px;
+      border-radius: 16px;
+      backdrop-filter: blur(6px);
+      margin-bottom: 20px;
+      box-shadow: 0 0 20px #00000080;
+    }
+
+    input, textarea {
+      width: 100%;
+      padding: 12px;
+      border-radius: 10px;
+      border: none;
+      margin-top: 5px;
+      margin-bottom: 15px;
+      background: #1f2937;
+      color: white;
+    }
+
+    button {
+      width: 100%;
+      padding: 14px;
+      background: #3b82f6;
+      border: none;
+      color: white;
+      border-radius: 10px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+
+    .post {
+      background: #1f2937dd;
+      padding: 15px;
+      border-radius: 14px;
+      margin-top: 15px;
+    }
+
+    .post img {
+      width: 100%;
+      margin-top: 10px;
+      border-radius: 10px;
+    }
+
+    /* ADMIN PANEL */
+    #adminPanel {
+      background: #0f172add;
+      padding: 20px;
+      border-radius: 14px;
+    }
+
+    .admin-delete {
+      background: #ef4444;
+      padding: 8px;
+      border-radius: 8px;
+      border: none;
+      color: white;
+      cursor: pointer;
+      width: 100%;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div class="bg-anim"></div>
+
+  <header>
+    <h1>ReSilence Bug Report</h1>
+  </header>
+
+  <div class="container">
+
+    <!-- FORM LAPORAN -->
+    <div class="card">
+      <h2>Buat Laporan</h2>
+
+      <label>Gamertag Pelapor</label>
+      <input id="reporter" placeholder="Nama kamu..." />
+
+      <label>Gamertag Yang Di-report</label>
+      <input id="reported" placeholder="Nama yang direport..." />
+
+      <label>Alasan</label>
+      <textarea id="reason" placeholder="Tulis alasan..." rows="3"></textarea>
+
+      <label>Upload Foto (bisa banyak)</label>
+      <input id="imageInput" type="file" accept="image/*" multiple />
+
+      <button onclick="postReport()">Kirim Laporan</button>
+    </div>
+
+    <!-- ADMIN PANEL -->
+    <div id="adminPanel" class="card">
+      <h2>Admin Panel</h2>
+      <input id="adminKey" placeholder="Masukkan Admin Key" />
+      <button onclick="adminLogin()">Login Admin</button>
+      <p id="adminStatus"></p>
+    </div>
+
+    <h2 style="margin-left: 5px;">Post Laporan</h2>
+    <div id="posts"></div>
+  </div>
+
+  <script>
+    // Firebase Config (ISI SENDIRI)
+    const firebaseConfig = {
+      apiKey: "ISI",
+      authDomain: "ISI",
+      databaseURL: "ISI",
+      projectId: "ISI",
+      storageBucket: "ISI",
+      messagingSenderId: "ISI",
+      appId: "ISI"
+    };
+
+    const app = firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    let adminMode = false;
+
+    function adminLogin() {
+      const key = document.getElementById("adminKey").value;
+      if (key === "ReSilenceAdmin999") {
+        adminMode = true;
+        document.getElementById("adminStatus").innerText = "Admin Mode ON";
+      } else {
+        adminMode = false;
+        document.getElementById("adminStatus").innerText = "Salah Key";
+      }
+    }
+
+    function postReport() {
+      const rep = document.getElementById("reporter").value;
+      const target = document.getElementById("reported").value;
+      const reason = document.getElementById("reason").value;
+      const images = document.getElementById("imageInput").files;
+
+      if (!rep || !target || !reason) return alert("Isi lengkap!");
+
+      let imgList = [];
+      for (let i = 0; i < images.length; i++) imgList.push(URL.createObjectURL(images[i]));
+
+      const postData = {
+        reporter: rep,
+        reported: target,
+        reason: reason,
+        images: imgList,
+        time: Date.now()
+      };
+
+      db.ref("reports").push(postData);
+
+      document.getElementById("reporter").value = "";
+      document.getElementById("reported").value = "";
+      document.getElementById("reason").value = "";
+      document.getElementById("imageInput").value = "";
+    }
+
+    // REAL-TIME LISTENER
+    db.ref("reports").on("value", snapshot => {
+      const postsDiv = document.getElementById("posts");
+      postsDiv.innerHTML = "";
+
+      snapshot.forEach(data => {
+        const val = data.val();
+        const id = data.key;
+        const post = document.createElement("div");
+        post.className = "post";
+
+        let imgs = "";
+        if (val.images) val.images.forEach(src => imgs += `<img src='${src}'>`);
+
+        post.innerHTML = `
+          <strong>${val.reporter}</strong><br>
+          <p>Yang direport: <b>${val.reported}</b></p>
+          <p>${val.reason}</p>
+          ${imgs}
+        `;
+
+        if (adminMode) {
+          const del = document.createElement("button");
+          del.className = "admin-delete";
+          del.innerText = "Hapus Laporan";
+          del.onclick = () => db.ref("reports/" + id).remove();
+          post.appendChild(del);
+        }
+
+        postsDiv.prepend(post);
+      });
+    });
+  </script>
+</body>
+</html>
